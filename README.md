@@ -17,6 +17,7 @@ proyecto_ejemplo/
 │   ├── 04_generar_reporte.py
 │   ├── run_pipeline.sh
 │   └── run_pipeline.py
+│   └── procesar_ventas.py
 ├── logs/                 # Logs de ejecución
 ├── .env.example          # Template de variables de ambiente
 ├── .gitignore
