@@ -30,3 +30,5 @@ psycopg2-binary>=2.9.0
 # black>=23.0.0
 # flake8>=6.0.0
 # pytest>=7.4.0
+
+jupyter
