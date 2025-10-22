@@ -60,9 +60,13 @@ print(f"Encontrados {len(clientes_importantes)} clientes con compras > 1000")
 ```
 
 **Problemas identificados:**
+
 1. Rutas absolutas que solo funcionan en una máquina
+
 2. Fechas repetidas (¿qué pasa si queremos analizar 2025?)
+
 3. Umbral mágico (1000) sin contexto
+
 4. Año repetido en strings
 
 Ahora refactoricemos paso a paso:
@@ -112,9 +116,13 @@ print(f"Encontrados {len(clientes_importantes)} clientes con compras > ${UMBRAL_
 ```
 
 **Mejoras logradas:**
+
 - ✅ Parámetros definidos una sola vez
+
 - ✅ Nombres descriptivos en MAYÚSCULAS para constantes
-- ✅ Rutas relativas usando `pathlib`
+
+- ✅ Rutas relativas usando `pathlib`. No es necesario usar `pathlib`, es una opción. Pero lo realmente importante es no hardcodear rutas absolutas, sino que usar rutas relativas al proyecto (no al archivo)
+
 - ✅ Fácil modificar para otro año o umbral
 
 ---
@@ -210,6 +218,19 @@ API_KEY=tu_api_key_aqui
 ```
 
 3. Documentar en README cómo configurar el `.env`
+
+
+4. A veces es bueno tener múltiples archivos `.env` para diferentes entornos:
+
+- `.env.development`
+- `.env.production`
+- `.env.testing`
+- `.env`
+- etc.
+
+Por defecto `python-dotenv` carga `.env`, pero puedes especificar otro archivo si es necesario. 
+
+Quizás algunos de ellos sí pueden comitearse, y otros no. Por defecto, los archivos `.env` no deberían comitearse nunca.
 
 ---
 
@@ -525,8 +546,11 @@ print(resultado)
 ```
 
 **Ventajas de Polars:**
+
 - Más rápido que pandas en datasets grandes
+
 - Sintaxis expresiva y type-safe
+
 - Lazy evaluation para optimización automática
 
 ---
@@ -559,8 +583,8 @@ proyecto_analytics/
 │   └── 04_analisis.py
 │
 ├── notebooks/
-│   ├── exploracion.ipynb
-│   └── validacion.ipynb
+│   ├── exploracion.qmd
+│   └── validacion.qmd
 │
 ├── src/                  # Código reutilizable
 │   ├── __init__.py
@@ -592,9 +616,13 @@ Ver este repositorio para un ejemplo completo:
 🔗 [https://github.com/rodo-nunez/ejemplo_de_modularizacion_de_proyecto](https://github.com/rodo-nunez/ejemplo_de_modularizacion_de_proyecto)
 
 **Nota importante:** No existe una estructura "perfecta". Adapta según:
+
 - Tamaño del proyecto
+
 - Número de colaboradores
+
 - Tecnologías utilizadas
+
 - Requisitos de deployment
 
 ## 4.4 Cookiecutter: Templates de Proyectos
@@ -696,9 +724,13 @@ scripts/
 ```
 
 **Ventajas:**
+
 - 🔍 **Debuggeable**: fácil identificar dónde falló
+
 - 🔄 **Reutilizable**: usar solo los pasos necesarios
+
 - 🤝 **Colaborativo**: diferentes personas trabajan en diferentes módulos
+
 - ⚡ **Eficiente**: re-ejecutar solo pasos modificados
 
 ---
@@ -1029,6 +1061,7 @@ def ejecutar_dag(dag, funciones):
 
 - 📚 Documentación oficial: [https://airflow.apache.org/docs/](https://airflow.apache.org/docs/)
 - 🎓 Tutorial: [https://airflow.apache.org/docs/apache-airflow/stable/tutorial.html](https://airflow.apache.org/docs/apache-airflow/stable/tutorial.html)
+- 📹 Episodio 140 de en_coders: [E140 - Airflow: Utilidad, elementos básicos y setup](https://www.youtube.com/watch?v=hh9P3dMOKwI&pp=ygURZW5fY29kZXJzIGFpcmZsb3c%3D)
 - 📹 YouTube: Buscar "Airflow tutorial for beginners"
 
 **Nota**: Airflow tiene una curva de aprendizaje considerable. Empieza con scripts Bash/Python y migra a Airflow cuando lo necesites.
@@ -1068,50 +1101,7 @@ Los scripts completos están en los artifacts complementarios. Aquí un resumen 
 
 ### Script 1: Extracción de Datos
 
-```{python}
-#| eval: false
-#| code-fold: true
-
-# scripts/01_extraer_datos.py
-"""Extrae datos de fuente (simulado con dataset de sklearn)"""
-
-import argparse
-import pandas as pd
-from pathlib import Path
-from sklearn.datasets import fetch_california_housing
-
-def extraer_datos(year, output_dir):
-    """Extrae datos de California Housing."""
-    print(f"📥 Extrayendo datos para {year}...")
-    
-    # Cargar dataset
-    california = fetch_california_housing(as_frame=True)
-    df = california.frame
-    
-    # Agregar columna de año simulada
-    df['year'] = year
-    
-    # Guardar
-    output_path = Path(output_dir) / f'raw_data_{year}.csv'
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(output_path, index=False)
-    
-    print(f"✅ Datos guardados en {output_path}")
-    print(f"📊 Registros extraídos: {len(df):,}")
-    
-    return output_path
-
-def main():
-    parser = argparse.ArgumentParser(description='Extraer datos')
-    parser.add_argument('--year', type=int, required=True)
-    parser.add_argument('--output-dir', default='data/raw')
-    args = parser.parse_args()
-    
-    extraer_datos(args.year, args.output_dir)
-
-if __name__ == '__main__':
-    main()
-```
+Extrae datos de fuente (simulado con dataset de sklearn)
 
 ### Script 2: Limpieza de Datos
 
@@ -1136,6 +1126,7 @@ Crea visualizaciones y métricas resumidas.
 3. **Variables sensibles en .env**, nunca hardcodeadas
 4. **argparse para scripts CLI** que necesitan flexibilidad
 5. **Validar parámetros** antes de usarlos
+6. Usar rutas relativas en lugar de absolutas. Si requieres usar rutas absolutas por algún motivo, nunca las hardcodees en el código. Úsalas como variables de ambiente o pásalas como argumentos.
 
 ## ✅ Estructura de Carpetas
 
@@ -1194,9 +1185,13 @@ Usa argparse y orquesta con Bash.
 
 Diseña la estructura de carpetas para un proyecto que:
 - Extrae datos de 3 fuentes diferentes
-- Tiene notebooks de exploración
+- Tiene notebooks de exploración (notebooks de Quarto, no de Jupyer Notebook, ya que estos últimos causan muchos problemas de versionamiento y otros inconvenientes)
 - Genera reportes diarios
 - Tiene tests unitarios
+
+## Ejercicio 4: Reporte Parametrizado
+
+- Crea un .qmd que reciba parámetros y genere reportes personalizados según lo que el usuario necesite
 
 ---
 
