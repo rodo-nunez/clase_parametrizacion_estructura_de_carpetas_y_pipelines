@@ -1,0 +1,1249 @@
+---
+title: "Parametrización, Estructura de Carpetas y Pipelines"
+subtitle: "De código enredado a pipelines profesionales"
+author: "Data Analytics Course"
+format:
+  html:
+    theme: darkly
+    toc: true
+    toc-depth: 3
+    code-fold: false
+    code-tools: true
+    highlight-style: monokai
+    self-contained: true
+---
+
+# 1. Introducción y Motivación
+
+## ¿Por qué parametrizar?
+
+Cuando trabajamos en proyectos de datos, es común empezar con código "rápido y sucio" para probar ideas. Sin embargo, este código presenta problemas:
+
+- **Valores hardcodeados** dispersos por todo el script
+- **Difícil mantenimiento**: cambiar un parámetro requiere editar múltiples líneas
+- **No reutilizable**: cada nuevo caso requiere copiar y modificar el código
+- **Propenso a errores**: fácil olvidar actualizar algún valor
+- **Difícil de versionar**: credenciales y configuraciones mezcladas con lógica
+
+**Objetivo de esta clase**: Transformar código desorganizado en pipelines profesionales, mantenibles y escalables.
+
+---
+
+# 2. Parametrización de Variables
+
+## 2.1 De Código Enredado a Código Limpio
+
+Veamos un ejemplo típico de código problemático:
+
+```{python}
+#| eval: false
+#| code-line-numbers: true
+
+# ❌ CÓDIGO MALO: valores hardcodeados y repetidos
+import pandas as pd
+
+# Cargar datos con ruta hardcodeada
+df = pd.read_csv('/home/usuario/proyectos/datos/ventas_2024.csv')
+
+# Filtrar por fecha (valor repetido)
+df_filtrado = df[df['fecha'] >= '2024-01-01']
+df_filtrado = df_filtrado[df_filtrado['fecha'] <= '2024-12-31']
+
+# Calcular métricas con umbral hardcodeado
+clientes_importantes = df_filtrado[df_filtrado['total'] > 1000]
+
+# Guardar en ruta hardcodeada
+clientes_importantes.to_csv('/home/usuario/proyectos/resultados/clientes_2024.csv')
+
+print(f"Procesados {len(df)} registros de 2024")
+print(f"Encontrados {len(clientes_importantes)} clientes con compras > 1000")
+```
+
+**Problemas identificados:**
+1. Rutas absolutas que solo funcionan en una máquina
+2. Fechas repetidas (¿qué pasa si queremos analizar 2025?)
+3. Umbral mágico (1000) sin contexto
+4. Año repetido en strings
+
+Ahora refactoricemos paso a paso:
+
+```{python}
+#| eval: false
+
+# ✅ CÓDIGO LIMPIO: parametrizado y mantenible
+import pandas as pd
+from pathlib import Path
+
+# Definir parámetros en un solo lugar
+YEAR = 2024
+UMBRAL_CLIENTE_IMPORTANTE = 1000
+RUTA_DATOS = Path('data')
+RUTA_RESULTADOS = Path('results')
+
+# Crear rutas si no existen
+RUTA_RESULTADOS.mkdir(exist_ok=True)
+
+# Nombres de archivos parametrizados
+archivo_entrada = RUTA_DATOS / f'ventas_{YEAR}.csv'
+archivo_salida = RUTA_RESULTADOS / f'clientes_{YEAR}.csv'
+
+# Cargar datos
+df = pd.read_csv(archivo_entrada)
+
+# Filtrar por fecha usando el parámetro
+fecha_inicio = f'{YEAR}-01-01'
+fecha_fin = f'{YEAR}-12-31'
+df_filtrado = df[
+    (df['fecha'] >= fecha_inicio) & 
+    (df['fecha'] <= fecha_fin)
+]
+
+# Calcular métricas usando parámetro descriptivo
+clientes_importantes = df_filtrado[
+    df_filtrado['total'] > UMBRAL_CLIENTE_IMPORTANTE
+]
+
+# Guardar resultados
+clientes_importantes.to_csv(archivo_salida, index=False)
+
+# Reportar resultados
+print(f"Procesados {len(df)} registros de {YEAR}")
+print(f"Encontrados {len(clientes_importantes)} clientes con compras > ${UMBRAL_CLIENTE_IMPORTANTE}")
+```
+
+**Mejoras logradas:**
+- ✅ Parámetros definidos una sola vez
+- ✅ Nombres descriptivos en MAYÚSCULAS para constantes
+- ✅ Rutas relativas usando `pathlib`
+- ✅ Fácil modificar para otro año o umbral
+
+---
+
+## 2.2 Variables de Ambiente con .env
+
+Para información sensible (credenciales, API keys) o configuraciones que cambian entre entornos (desarrollo, producción), usamos archivos `.env`.
+
+### Instalación
+
+```{bash}
+#| eval: false
+pip install python-dotenv
+```
+
+### Crear archivo .env
+
+Crear archivo `.env` en la raíz del proyecto:
+
+```{bash}
+#| eval: false
+#| filename: ".env"
+
+# Configuración de base de datos
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=analytics_db
+DB_USER=analyst
+DB_PASSWORD=mi_password_secreto
+
+# Configuración de APIs
+API_KEY=abc123xyz789
+API_ENDPOINT=https://api.ejemplo.com
+
+# Configuración del proyecto
+ENVIRONMENT=development
+LOG_LEVEL=INFO
+```
+
+### Uso en Python
+
+```{python}
+#| eval: false
+
+import os
+from dotenv import load_dotenv
+
+# Cargar variables de ambiente
+load_dotenv()
+
+# Acceder a las variables
+db_host = os.getenv('DB_HOST')
+db_port = os.getenv('DB_PORT')
+db_name = os.getenv('DB_NAME')
+api_key = os.getenv('API_KEY')
+
+# Valores por defecto si no existe la variable
+log_level = os.getenv('LOG_LEVEL', 'WARNING')
+
+print(f"Conectando a {db_host}:{db_port}/{db_name}")
+print(f"Nivel de log: {log_level}")
+```
+
+### 🔒 Buenas Prácticas de Seguridad
+
+1. **NUNCA** subir `.env` a Git:
+
+```{bash}
+#| eval: false
+#| filename: ".gitignore"
+
+# Ignorar archivos de ambiente
+.env
+.env.local
+.env.*.local
+```
+
+2. Crear `.env.example` como plantilla:
+
+```{bash}
+#| eval: false
+#| filename: ".env.example"
+
+# Configuración de base de datos
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=nombre_base_datos
+DB_USER=tu_usuario
+DB_PASSWORD=tu_password
+
+# Configuración de APIs
+API_KEY=tu_api_key_aqui
+```
+
+3. Documentar en README cómo configurar el `.env`
+
+---
+
+## 2.3 Argumentos de Línea de Comandos con argparse
+
+`argparse` permite ejecutar scripts con diferentes parámetros sin modificar el código.
+
+### Ejemplo Básico
+
+Crear archivo `procesar_ventas.py`:
+
+```{python}
+#| eval: false
+#| filename: "scripts/procesar_ventas.py"
+
+import argparse
+import pandas as pd
+from pathlib import Path
+
+def procesar_ventas(year, umbral, verbose=False):
+    """Procesa ventas de un año específico."""
+    
+    # Rutas
+    archivo_entrada = Path('data') / f'ventas_{year}.csv'
+    archivo_salida = Path('results') / f'clientes_{year}.csv'
+    
+    if verbose:
+        print(f"📂 Leyendo {archivo_entrada}...")
+    
+    # Aquí iría la lógica real de procesamiento
+    # Para el ejemplo, creamos datos dummy
+    df = pd.DataFrame({
+        'cliente_id': range(1, 101),
+        'total': [500 + i * 15 for i in range(100)]
+    })
+    
+    clientes_importantes = df[df['total'] > umbral]
+    
+    # Guardar
+    Path('results').mkdir(exist_ok=True)
+    clientes_importantes.to_csv(archivo_salida, index=False)
+    
+    if verbose:
+        print(f"✅ Procesados {len(df)} registros")
+        print(f"✅ {len(clientes_importantes)} clientes > ${umbral}")
+        print(f"💾 Guardado en {archivo_salida}")
+    
+    return len(clientes_importantes)
+
+def main():
+    # Configurar parser
+    parser = argparse.ArgumentParser(
+        description='Procesa ventas y filtra clientes importantes',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    
+    # Argumentos requeridos
+    parser.add_argument(
+        '--year',
+        type=int,
+        required=True,
+        help='Año a procesar (ej: 2024)'
+    )
+    
+    # Argumentos opcionales con valores por defecto
+    parser.add_argument(
+        '--umbral',
+        type=float,
+        default=1000,
+        help='Umbral mínimo para cliente importante'
+    )
+    
+    parser.add_argument(
+        '--verbose', '-v',
+        action='store_true',
+        help='Mostrar mensajes detallados'
+    )
+    
+    # Parsear argumentos
+    args = parser.parse_args()
+    
+    # Ejecutar procesamiento
+    n_clientes = procesar_ventas(
+        year=args.year,
+        umbral=args.umbral,
+        verbose=args.verbose
+    )
+    
+    print(f"Proceso completado: {n_clientes} clientes importantes")
+
+if __name__ == '__main__':
+    main()
+```
+
+### Uso desde Terminal
+
+```{bash}
+#| eval: false
+
+# Ver ayuda
+python scripts/procesar_ventas.py --help
+
+# Ejecución básica (solo argumento requerido)
+python scripts/procesar_ventas.py --year 2024
+
+# Con todos los parámetros
+python scripts/procesar_ventas.py --year 2024 --umbral 1500 --verbose
+
+# Forma corta para verbose
+python scripts/procesar_ventas.py --year 2025 -v
+```
+
+### Tipos de Argumentos Comunes
+
+```{python}
+#| eval: false
+
+# String
+parser.add_argument('--nombre', type=str, required=True)
+
+# Integer
+parser.add_argument('--num-registros', type=int, default=100)
+
+# Float
+parser.add_argument('--tasa', type=float, default=0.05)
+
+# Boolean flag
+parser.add_argument('--debug', action='store_true')
+
+# Lista de valores
+parser.add_argument('--columnas', nargs='+', help='Lista de columnas')
+
+# Opciones limitadas
+parser.add_argument(
+    '--formato', 
+    choices=['csv', 'parquet', 'excel'],
+    default='csv'
+)
+```
+
+---
+
+# 3. Parametrización de Queries
+
+## 3.1 SQL con f-strings
+
+Al construir queries dinámicamente, necesitamos insertar parámetros. Los f-strings son útiles pero debemos usarlos con cuidado.
+
+### Ejemplo Seguro
+
+```{python}
+#| eval: false
+
+import pandas as pd
+import sqlite3
+
+# Crear base de datos de ejemplo
+conn = sqlite3.connect(':memory:')
+
+# Crear tabla de ejemplo
+ventas_data = pd.DataFrame({
+    'fecha': pd.date_range('2024-01-01', periods=100),
+    'producto': ['Laptop', 'Mouse', 'Teclado'] * 33 + ['Laptop'],
+    'cantidad': range(1, 101),
+    'precio': [1000, 25, 75] * 33 + [1000]
+})
+ventas_data.to_sql('ventas', conn, index=False, if_exists='replace')
+
+# Parámetros
+fecha_inicio = '2024-01-01'
+fecha_fin = '2024-03-31'
+producto_filtro = 'Laptop'
+cantidad_minima = 50
+
+# Query parametrizada con f-strings
+query = f"""
+SELECT 
+    fecha,
+    producto,
+    cantidad,
+    precio,
+    cantidad * precio as total
+FROM ventas
+WHERE fecha BETWEEN '{fecha_inicio}' AND '{fecha_fin}'
+    AND producto = '{producto_filtro}'
+    AND cantidad >= {cantidad_minima}
+ORDER BY fecha DESC
+"""
+
+resultado = pd.read_sql(query, conn)
+print(resultado.head())
+
+conn.close()
+```
+
+### ⚠️ Prevención de SQL Injection
+
+**NUNCA** usar f-strings con input de usuarios sin validación:
+
+```{python}
+#| eval: false
+
+# ❌ PELIGROSO: vulnerable a SQL injection
+producto_usuario = input("¿Qué producto buscar? ")
+query = f"SELECT * FROM ventas WHERE producto = '{producto_usuario}'"
+
+# ✅ SEGURO: usar parámetros con placeholder
+query = "SELECT * FROM ventas WHERE producto = ?"
+resultado = pd.read_sql(query, conn, params=(producto_usuario,))
+```
+
+### Construcción Dinámica de Queries
+
+```{python}
+#| eval: false
+
+def construir_query_ventas(
+    columnas=None,
+    fecha_inicio=None,
+    fecha_fin=None,
+    productos=None,
+    limite=None
+):
+    """Construye query dinámicamente según parámetros."""
+    
+    # Columnas por defecto
+    if columnas is None:
+        columnas = ['fecha', 'producto', 'cantidad', 'precio']
+    
+    select_clause = ', '.join(columnas)
+    
+    # Construir WHERE dinámicamente
+    condiciones = []
+    
+    if fecha_inicio:
+        condiciones.append(f"fecha >= '{fecha_inicio}'")
+    
+    if fecha_fin:
+        condiciones.append(f"fecha <= '{fecha_fin}'")
+    
+    if productos:
+        productos_str = "', '".join(productos)
+        condiciones.append(f"producto IN ('{productos_str}')")
+    
+    where_clause = ' AND '.join(condiciones) if condiciones else '1=1'
+    
+    # Construir query completa
+    query = f"""
+    SELECT {select_clause}
+    FROM ventas
+    WHERE {where_clause}
+    """
+    
+    if limite:
+        query += f"\nLIMIT {limite}"
+    
+    return query
+
+# Ejemplo de uso
+query1 = construir_query_ventas(
+    fecha_inicio='2024-01-01',
+    productos=['Laptop', 'Mouse'],
+    limite=10
+)
+print(query1)
+```
+
+---
+
+## 3.2 Parametrización con Polars (Opcional)
+
+Polars es una alternativa moderna y rápida a pandas. Ofrece formas elegantes de parametrizar queries.
+
+```{python}
+#| eval: false
+
+import polars as pl
+
+# Crear DataFrame de ejemplo
+df = pl.DataFrame({
+    'fecha': pl.date_range(
+        start=pl.date(2024, 1, 1),
+        end=pl.date(2024, 12, 31),
+        interval='1d'
+    ),
+    'producto': ['Laptop', 'Mouse', 'Teclado'] * 122,
+    'cantidad': range(1, 367),
+    'precio': [1000, 25, 75] * 122
+})
+
+# Parámetros
+FECHA_INICIO = pl.date(2024, 6, 1)
+FECHA_FIN = pl.date(2024, 6, 30)
+PRODUCTOS_INTERES = ['Laptop', 'Mouse']
+CANTIDAD_MIN = 100
+
+# Query parametrizada con Polars
+resultado = (
+    df
+    .filter(
+        (pl.col('fecha') >= FECHA_INICIO) &
+        (pl.col('fecha') <= FECHA_FIN) &
+        (pl.col('producto').is_in(PRODUCTOS_INTERES)) &
+        (pl.col('cantidad') >= CANTIDAD_MIN)
+    )
+    .with_columns(
+        (pl.col('cantidad') * pl.col('precio')).alias('total')
+    )
+    .sort('fecha', descending=True)
+)
+
+print(resultado)
+```
+
+**Ventajas de Polars:**
+- Más rápido que pandas en datasets grandes
+- Sintaxis expresiva y type-safe
+- Lazy evaluation para optimización automática
+
+---
+
+# 4. Estructura de Carpetas
+
+## 4.1 Principios de Organización
+
+Una buena estructura de carpetas:
+
+- **Facilita encontrar archivos**: ubicación predecible
+- **Separa concerns**: datos, código, resultados, documentación
+- **Escalable**: crece con el proyecto sin volverse caótica
+- **Reproducible**: otros pueden entender y ejecutar el proyecto
+
+## 4.2 Estructura Recomendada
+
+```
+proyecto_analytics/
+│
+├── data/
+│   ├── raw/              # Datos originales (NUNCA modificar)
+│   ├── processed/        # Datos procesados
+│   └── external/         # Datos de fuentes externas
+│
+├── scripts/
+│   ├── 01_extraccion.py
+│   ├── 02_limpieza.py
+│   ├── 03_transformacion.py
+│   └── 04_analisis.py
+│
+├── notebooks/
+│   ├── exploracion.ipynb
+│   └── validacion.ipynb
+│
+├── src/                  # Código reutilizable
+│   ├── __init__.py
+│   ├── utils.py
+│   ├── config.py
+│   └── database.py
+│
+├── results/
+│   ├── figures/
+│   └── tables/
+│
+├── docs/
+│   └── metodologia.md
+│
+├── tests/                # Tests unitarios
+│   └── test_utils.py
+│
+├── .env                  # Variables de ambiente (NO subir a git)
+├── .env.example          # Template de .env
+├── .gitignore
+├── requirements.txt
+└── README.md
+```
+
+## 4.3 Ejemplo Real
+
+Ver este repositorio para un ejemplo completo:
+
+🔗 [https://github.com/rodo-nunez/ejemplo_de_modularizacion_de_proyecto](https://github.com/rodo-nunez/ejemplo_de_modularizacion_de_proyecto)
+
+**Nota importante:** No existe una estructura "perfecta". Adapta según:
+- Tamaño del proyecto
+- Número de colaboradores
+- Tecnologías utilizadas
+- Requisitos de deployment
+
+## 4.4 Cookiecutter: Templates de Proyectos
+
+Cookiecutter permite crear proyectos desde templates predefinidos.
+
+### Instalación
+
+```{bash}
+#| eval: false
+pip install cookiecutter
+```
+
+### Usar un Template
+
+```{bash}
+#| eval: false
+
+# Template para Data Science
+cookiecutter https://github.com/drivendata/cookiecutter-data-science
+
+# Responder las preguntas interactivas:
+# project_name: Mi Proyecto Analytics
+# repo_name: mi_proyecto_analytics
+# author_name: Tu Nombre
+# etc.
+```
+
+### Crear Tu Propio Template
+
+```{bash}
+#| eval: false
+
+# Estructura básica de un template
+cookiecutter-mi-template/
+├── cookiecutter.json          # Configuración
+└── {{cookiecutter.repo_name}}/
+    ├── data/
+    ├── scripts/
+    ├── src/
+    ├── README.md
+    └── requirements.txt
+```
+
+Archivo `cookiecutter.json`:
+
+```{python}
+#| eval: false
+
+{
+    "project_name": "Mi Proyecto",
+    "repo_name": "{{ cookiecutter.project_name.lower().replace(' ', '_') }}",
+    "author_name": "Nombre del Autor",
+    "python_version": "3.11"
+}
+```
+
+---
+
+# 5. Pipelines y Orquestación
+
+## 5.1 ¿Por Qué Modularizar?
+
+Imagina un análisis típico:
+
+1. Extraer datos de BD
+2. Limpiar datos
+3. Construir features
+4. Entrenar modelo
+5. Generar reportes
+
+### ❌ Enfoque Monolítico
+
+```{python}
+#| eval: false
+
+# Un solo script gigante de 1000+ líneas
+# Difícil de mantener, debuggear y reutilizar
+import pandas as pd
+
+# ... 100 líneas de extracción ...
+# ... 200 líneas de limpieza ...
+# ... 300 líneas de feature engineering ...
+# ... 400 líneas de modelado ...
+```
+
+### ✅ Enfoque Modular
+
+```{bash}
+#| eval: false
+
+# Scripts separados, cada uno con responsabilidad única
+scripts/
+├── 01_extraer_datos.py       # Solo extracción
+├── 02_limpiar_datos.py       # Solo limpieza
+├── 03_crear_features.py      # Solo feature engineering
+├── 04_entrenar_modelo.py     # Solo modelado
+└── 05_generar_reporte.py     # Solo reporting
+```
+
+**Ventajas:**
+- 🔍 **Debuggeable**: fácil identificar dónde falló
+- 🔄 **Reutilizable**: usar solo los pasos necesarios
+- 🤝 **Colaborativo**: diferentes personas trabajan en diferentes módulos
+- ⚡ **Eficiente**: re-ejecutar solo pasos modificados
+
+---
+
+## 5.2 Orquestación con Bash
+
+Un script Bash puede ejecutar todos los pasos secuencialmente.
+
+### Crear Pipeline Bash
+
+Archivo `run_pipeline.sh`:
+
+```{bash}
+#| eval: false
+#| filename: "scripts/run_pipeline.sh"
+
+#!/bin/bash
+
+# Pipeline de procesamiento de datos
+# Ejecuta scripts en orden secuencial
+
+echo "🚀 Iniciando pipeline..."
+echo "================================"
+
+# Configuración
+PYTHON=python
+SCRIPTS_DIR=scripts
+YEAR=2024
+
+# Paso 1: Extraer datos
+echo ""
+echo "📥 PASO 1: Extrayendo datos..."
+$PYTHON $SCRIPTS_DIR/01_extraer_datos.py --year $YEAR
+if [ $? -ne 0 ]; then
+    echo "❌ Error en extracción. Pipeline detenido."
+    exit 1
+fi
+echo "✅ Extracción completada"
+
+# Paso 2: Limpiar datos
+echo ""
+echo "🧹 PASO 2: Limpiando datos..."
+$PYTHON $SCRIPTS_DIR/02_limpiar_datos.py --year $YEAR
+if [ $? -ne 0 ]; then
+    echo "❌ Error en limpieza. Pipeline detenido."
+    exit 1
+fi
+echo "✅ Limpieza completada"
+
+# Paso 3: Crear features
+echo ""
+echo "⚙️  PASO 3: Creando features..."
+$PYTHON $SCRIPTS_DIR/03_crear_features.py --year $YEAR
+if [ $? -ne 0 ]; then
+    echo "❌ Error en feature engineering. Pipeline detenido."
+    exit 1
+fi
+echo "✅ Features creadas"
+
+# Paso 4: Generar reporte
+echo ""
+echo "📊 PASO 4: Generando reporte..."
+$PYTHON $SCRIPTS_DIR/04_generar_reporte.py --year $YEAR
+if [ $? -ne 0 ]; then
+    echo "❌ Error en generación de reporte. Pipeline detenido."
+    exit 1
+fi
+echo "✅ Reporte generado"
+
+echo ""
+echo "================================"
+echo "🎉 Pipeline completado exitosamente!"
+```
+
+### Ejecutar Pipeline
+
+```{bash}
+#| eval: false
+
+# Dar permisos de ejecución
+chmod +x scripts/run_pipeline.sh
+
+# Ejecutar
+./scripts/run_pipeline.sh
+```
+
+### Pipeline con Logging
+
+```{bash}
+#| eval: false
+#| filename: "scripts/run_pipeline_logging.sh"
+
+#!/bin/bash
+
+# Pipeline con logging detallado
+
+LOG_DIR=logs
+mkdir -p $LOG_DIR
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+LOG_FILE=$LOG_DIR/pipeline_$TIMESTAMP.log
+
+echo "Iniciando pipeline - Log: $LOG_FILE"
+
+# Función para logging
+log_step() {
+    echo "[$(date +%H:%M:%S)] $1" | tee -a $LOG_FILE
+}
+
+log_step "🚀 Pipeline iniciado"
+
+# Ejecutar pasos con logging
+log_step "📥 Extrayendo datos..."
+python scripts/01_extraer_datos.py --year 2024 2>&1 | tee -a $LOG_FILE
+RESULT=${PIPESTATUS[0]}
+
+if [ $RESULT -ne 0 ]; then
+    log_step "❌ Pipeline falló en extracción"
+    exit 1
+fi
+
+log_step "✅ Pipeline completado"
+```
+
+---
+
+## 5.3 Orquestación con Python
+
+Alternativamente, usar Python para orquestar:
+
+```{python}
+#| eval: false
+#| filename: "scripts/run_pipeline.py"
+
+#!/usr/bin/env python3
+"""
+Orquestador de pipeline en Python
+"""
+
+import os
+import sys
+from datetime import datetime
+
+def run_step(step_name, script_path, args=None):
+    """Ejecuta un paso del pipeline."""
+    print(f"\n{'='*50}")
+    print(f"🔄 Ejecutando: {step_name}")
+    print(f"{'='*50}")
+    
+    # Construir comando
+    cmd = f"python {script_path}"
+    if args:
+        cmd += " " + " ".join(args)
+    
+    print(f"Comando: {cmd}")
+    
+    # Ejecutar
+    exit_code = os.system(cmd)
+    
+    if exit_code != 0:
+        print(f"\n❌ Error en {step_name}")
+        print(f"Código de salida: {exit_code}")
+        sys.exit(1)
+    
+    print(f"✅ {step_name} completado")
+    return exit_code
+
+def main():
+    """Ejecuta pipeline completo."""
+    start_time = datetime.now()
+    
+    print("🚀 Iniciando pipeline...")
+    print(f"Hora de inicio: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
+    
+    # Parámetros comunes
+    year = "2024"
+    
+    # Definir pasos del pipeline
+    steps = [
+        {
+            'name': 'Extracción de datos',
+            'script': 'scripts/01_extraer_datos.py',
+            'args': ['--year', year]
+        },
+        {
+            'name': 'Limpieza de datos',
+            'script': 'scripts/02_limpiar_datos.py',
+            'args': ['--year', year]
+        },
+        {
+            'name': 'Feature Engineering',
+            'script': 'scripts/03_crear_features.py',
+            'args': ['--year', year]
+        },
+        {
+            'name': 'Generación de reporte',
+            'script': 'scripts/04_generar_reporte.py',
+            'args': ['--year', year]
+        }
+    ]
+    
+    # Ejecutar cada paso
+    for step in steps:
+        run_step(step['name'], step['script'], step['args'])
+    
+    # Resumen final
+    end_time = datetime.now()
+    duration = end_time - start_time
+    
+    print("\n" + "="*50)
+    print("🎉 Pipeline completado exitosamente!")
+    print(f"Duración total: {duration}")
+    print("="*50)
+
+if __name__ == '__main__':
+    main()
+```
+
+### Uso
+
+```{bash}
+#| eval: false
+
+# Ejecutar orquestador
+python scripts/run_pipeline.py
+```
+
+---
+
+## 5.4 Conceptos de DAG
+
+**DAG** = Directed Acyclic Graph (Grafo Acíclico Dirigido)
+
+### ¿Qué es un DAG?
+
+Un DAG representa dependencias entre tareas:
+- **Nodos**: tareas individuales
+- **Aristas**: dependencias (qué debe ejecutarse primero)
+- **Acíclico**: no hay loops (A depende de B, B de C, C de A ❌)
+
+### Ejemplo Visual
+
+```
+      [Extraer DB1]     [Extraer DB2]
+            |                 |
+            v                 v
+        [Limpiar DB1]    [Limpiar DB2]
+            |                 |
+            +--------+--------+
+                     |
+                     v
+              [Unir Datasets]
+                     |
+                     v
+              [Feature Engineering]
+                     |
+                     v
+            [Entrenar Modelo]
+                     |
+                     v
+            [Generar Reporte]
+```
+
+### Ventajas de Pensar en DAGs
+
+1. **Paralelización**: tareas sin dependencias se ejecutan en paralelo
+2. **Recuperación de errores**: re-ejecutar solo desde el punto de falla
+3. **Claridad**: visualizar fácilmente el flujo
+4. **Optimización**: identificar cuellos de botella
+
+### DAG Simple en Python
+
+```{python}
+#| eval: false
+
+# Representación simple de un DAG
+pipeline_dag = {
+    'extraer_db1': [],                          # Sin dependencias
+    'extraer_db2': [],                          # Sin dependencias
+    'limpiar_db1': ['extraer_db1'],            # Depende de extraer_db1
+    'limpiar_db2': ['extraer_db2'],            # Depende de extraer_db2
+    'unir_datasets': ['limpiar_db1', 'limpiar_db2'],  # Depende de ambos
+    'feature_engineering': ['unir_datasets'],
+    'entrenar_modelo': ['feature_engineering'],
+    'generar_reporte': ['entrenar_modelo']
+}
+
+def ejecutar_dag(dag, funciones):
+    """Ejecuta tareas respetando dependencias."""
+    ejecutadas = set()
+    
+    def puede_ejecutar(tarea):
+        """Verifica si todas las dependencias están satisfechas."""
+        return all(dep in ejecutadas for dep in dag[tarea])
+    
+    while len(ejecutadas) < len(dag):
+        for tarea, deps in dag.items():
+            if tarea not in ejecutadas and puede_ejecutar(tarea):
+                print(f"▶️  Ejecutando: {tarea}")
+                funciones[tarea]()  # Ejecutar función
+                ejecutadas.add(tarea)
+                print(f"✅ Completado: {tarea}\n")
+```
+
+---
+
+## 5.5 Herramientas Profesionales: Airflow
+
+**Apache Airflow** es la herramienta líder para orquestación de pipelines complejos.
+
+### Características Principales
+
+- 📅 **Scheduling**: ejecutar pipelines en horarios específicos
+- 🔄 **Retries**: reintentos automáticos en caso de falla
+- 📊 **Monitoring**: UI para visualizar estado de tareas
+- 🔀 **Dependencias complejas**: DAGs sofisticados
+- 🔌 **Integraciones**: conectores para AWS, GCP, bases de datos, etc.
+
+### ¿Cuándo Usar Airflow?
+
+- ✅ Pipelines complejos con muchas dependencias
+- ✅ Necesidad de scheduling robusto
+- ✅ Múltiples fuentes de datos
+- ✅ Equipos grandes que necesitan monitoreo centralizado
+- ❌ Proyectos pequeños (overhead innecesario)
+- ❌ Pipelines que se ejecutan manualmente
+
+### Recursos para Aprender
+
+- 📚 Documentación oficial: [https://airflow.apache.org/docs/](https://airflow.apache.org/docs/)
+- 🎓 Tutorial: [https://airflow.apache.org/docs/apache-airflow/stable/tutorial.html](https://airflow.apache.org/docs/apache-airflow/stable/tutorial.html)
+- 📹 YouTube: Buscar "Airflow tutorial for beginners"
+
+**Nota**: Airflow tiene una curva de aprendizaje considerable. Empieza con scripts Bash/Python y migra a Airflow cuando lo necesites.
+
+---
+
+# 6. Ejemplo Completo: Pipeline End-to-End
+
+Pongamos todo junto en un ejemplo funcional.
+
+## 6.1 Estructura del Proyecto
+
+```
+proyecto_ejemplo/
+├── data/
+│   ├── raw/
+│   └── processed/
+├── results/
+├── scripts/
+│   ├── 01_extraer_datos.py
+│   ├── 02_limpiar_datos.py
+│   ├── 03_crear_features.py
+│   ├── 04_generar_reporte.py
+│   ├── run_pipeline.sh
+│   └── run_pipeline.py
+├── src/
+│   ├── __init__.py
+│   └── config.py
+├── .env
+├── .env.example
+└── requirements.txt
+```
+
+## 6.2 Scripts del Pipeline
+
+Los scripts completos están en los artifacts complementarios. Aquí un resumen de cada uno:
+
+### Script 1: Extracción de Datos
+
+```{python}
+#| eval: false
+#| code-fold: true
+
+# scripts/01_extraer_datos.py
+"""Extrae datos de fuente (simulado con dataset de sklearn)"""
+
+import argparse
+import pandas as pd
+from pathlib import Path
+from sklearn.datasets import fetch_california_housing
+
+def extraer_datos(year, output_dir):
+    """Extrae datos de California Housing."""
+    print(f"📥 Extrayendo datos para {year}...")
+    
+    # Cargar dataset
+    california = fetch_california_housing(as_frame=True)
+    df = california.frame
+    
+    # Agregar columna de año simulada
+    df['year'] = year
+    
+    # Guardar
+    output_path = Path(output_dir) / f'raw_data_{year}.csv'
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(output_path, index=False)
+    
+    print(f"✅ Datos guardados en {output_path}")
+    print(f"📊 Registros extraídos: {len(df):,}")
+    
+    return output_path
+
+def main():
+    parser = argparse.ArgumentParser(description='Extraer datos')
+    parser.add_argument('--year', type=int, required=True)
+    parser.add_argument('--output-dir', default='data/raw')
+    args = parser.parse_args()
+    
+    extraer_datos(args.year, args.output_dir)
+
+if __name__ == '__main__':
+    main()
+```
+
+### Script 2: Limpieza de Datos
+
+Maneja valores nulos, outliers, y validaciones.
+
+### Script 3: Feature Engineering
+
+Crea variables derivadas para análisis.
+
+### Script 4: Generación de Reporte
+
+Crea visualizaciones y métricas resumidas.
+
+---
+
+# 7. Buenas Prácticas - Resumen
+
+## ✅ Parametrización
+
+1. **Definir parámetros al inicio** del script
+2. **Usar nombres descriptivos** en MAYÚSCULAS para constantes
+3. **Variables sensibles en .env**, nunca hardcodeadas
+4. **argparse para scripts CLI** que necesitan flexibilidad
+5. **Validar parámetros** antes de usarlos
+
+## ✅ Estructura de Carpetas
+
+1. **Separar datos crudos de procesados**
+2. **Scripts numerados** para indicar orden de ejecución
+3. **Código reutilizable en `src/`**
+4. **Documentar en README** la estructura del proyecto
+5. **Usar .gitignore** para excluir datos/credenciales
+
+## ✅ Pipelines
+
+1. **Un script, una responsabilidad**
+2. **Manejo de errores** en cada paso
+3. **Logging detallado** para debugging
+4. **Idempotencia**: mismo input = mismo output
+5. **Tests para validar** cada módulo
+
+## ✅ Queries SQL
+
+1. **Evitar SELECT *** excepto en exploración
+2. **Parametrizar con precaución** (SQL injection)
+3. **Comentar queries complejas**
+4. **Usar CTEs** para legibilidad
+5. **Índices en columnas** filtradas frecuentemente
+
+---
+
+# 8. Ejercicios Propuestos
+
+## Ejercicio 1: Refactorizar Código
+
+Dado este código malo, refactorízalo aplicando lo aprendido:
+
+```{python}
+#| eval: false
+
+import pandas as pd
+
+df = pd.read_csv('/Users/juan/Desktop/ventas.csv')
+df = df[df['monto'] > 1000]
+df = df[df['fecha'] >= '2024-01-01']
+df.to_csv('/Users/juan/Desktop/resultados.csv')
+print("Listo")
+```
+
+## Ejercicio 2: Crear Pipeline
+
+Crea un pipeline de 3 pasos:
+1. Leer CSV
+2. Filtrar por condición
+3. Guardar resultado
+
+Usa argparse y orquesta con Bash.
+
+## Ejercicio 3: Estructura de Carpetas
+
+Diseña la estructura de carpetas para un proyecto que:
+- Extrae datos de 3 fuentes diferentes
+- Tiene notebooks de exploración
+- Genera reportes diarios
+- Tiene tests unitarios
+
+---
+
+# 9. Recursos Adicionales
+
+## Documentación
+
+- 📘 **argparse**: [https://docs.python.org/3/library/argparse.html](https://docs.python.org/3/library/argparse.html)
+- 📘 **python-dotenv**: [https://pypi.org/project/python-dotenv/](https://pypi.org/project/python-dotenv/)
+- 📘 **Polars**: [https://pola.rs/](https://pola.rs/)
+- 📘 **Cookiecutter**: [https://cookiecutter.readthedocs.io/](https://cookiecutter.readthedocs.io/)
+- 📘 **Airflow**: [https://airflow.apache.org/](https://airflow.apache.org/)
+
+## Libros Recomendados
+
+- 📚 "The Pragmatic Programmer" - Andy Hunt & Dave Thomas
+- 📚 "Clean Code" - Robert C. Martin (aplicable a Python)
+
+## Repositorios de Ejemplo
+
+- 🔗 [Cookiecutter Data Science](https://github.com/drivendata/cookiecutter-data-science)
+- 🔗 [Ejemplo de modularización](https://github.com/rodo-nunez/ejemplo_de_modularizacion_de_proyecto)
+
+---
+
+# 10. Conclusiones
+
+En esta clase aprendimos a:
+
+1. ✅ **Parametrizar código** para hacerlo flexible y mantenible
+2. ✅ **Usar .env** para gestionar configuraciones sensibles
+3. ✅ **Crear scripts CLI** con argparse
+4. ✅ **Parametrizar queries SQL** de forma segura
+5. ✅ **Organizar proyectos** con estructura de carpetas clara
+6. ✅ **Modularizar código** en scripts especializados
+7. ✅ **Orquestar pipelines** con Bash y Python
+8. ✅ **Entender DAGs** y su rol en pipelines complejos
+
+## Próximos Pasos
+
+- 🎯 Aplicar parametrización en tus proyectos actuales
+- 🎯 Crear tu template de proyecto con cookiecutter
+- 🎯 Experimentar con pipelines simples
+- 🎯 Investigar Airflow cuando tengas pipelines complejos
+
+---
+
+**¡Gracias por tu atención!**
+
+¿Preguntas?
