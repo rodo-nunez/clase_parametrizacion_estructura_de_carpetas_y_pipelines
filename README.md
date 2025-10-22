@@ -225,6 +225,7 @@ BINS_PRICE = [0, 2, 4, 6, np.inf]  # Modificar bins
 - **Python-dotenv**: https://pypi.org/project/python-dotenv/
 - **Cookiecutter Data Science**: https://github.com/drivendata/cookiecutter-data-science
 - **Ejemplo de modularización**: https://github.com/rodo-nunez/ejemplo_de_modularizacion_de_proyecto
+- **Demos sobre productivización de un modelo - en_coders**: https://www.youtube.com/playlist?list=PLncJaQ29xsF0Typ2Pf5KaC3xYUi2QMjPA
 
 ## 🐛 Troubleshooting
 
