@@ -1,7 +1,7 @@
 ---
 title: "Parametrización, Estructura de Carpetas y Pipelines"
 subtitle: "De código enredado a pipelines profesionales"
-author: "Data Analytics Course"
+author: "Claude guiado y corregido por Rodo"
 format:
   html:
     theme: darkly

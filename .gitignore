@@ -76,3 +76,7 @@ Desktop.ini
 *.tmp
 *.bak
 *.cache
+
+# Outputs
+
+*.html

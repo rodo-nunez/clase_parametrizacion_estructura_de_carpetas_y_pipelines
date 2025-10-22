@@ -6,7 +6,7 @@
 ################################################################################
 
 # Configuración
-PYTHON=python3
+PYTHON=python
 SCRIPTS_DIR=scripts
 YEAR=2024
 VERBOSE="-v"  # Comentar esta línea para ejecución silenciosa
