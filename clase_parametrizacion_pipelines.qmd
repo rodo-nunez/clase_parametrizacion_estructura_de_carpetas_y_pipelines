@@ -1087,12 +1087,15 @@ proyecto_ejemplo/
 │   ├── 04_generar_reporte.py
 │   ├── run_pipeline.sh
 │   └── run_pipeline.py
+│   └── procesar_ventas.py
 ├── src/
 │   ├── __init__.py
 │   └── config.py
+├── logs/                 # Logs de ejecución
 ├── .env
 ├── .env.example
-└── requirements.txt
+├── requirements.txt
+└── .gitignore
 ```
 
 ## 6.2 Scripts del Pipeline
